@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace TestTask
 {
@@ -22,13 +23,16 @@ namespace TestTask
             IList<LetterStats> singleLetterStats = FillSingleLetterStats(inputStream1);
             IList<LetterStats> doubleLetterStats = FillDoubleLetterStats(inputStream2);
 
-            RemoveCharStatsByType(singleLetterStats, CharType.Vowel);
-            RemoveCharStatsByType(doubleLetterStats, CharType.Consonants);
+            SelectCharStatsByType(ref singleLetterStats, CharType.Vowel);
+            SelectCharStatsByType(ref doubleLetterStats, CharType.Consonants);
 
             PrintStatistic(singleLetterStats);
             PrintStatistic(doubleLetterStats);
 
-            // TODO : Необжодимо дождаться нажатия клавиши, прежде чем завершать выполнение программы.
+            inputStream1.Close();
+            inputStream2.Close();
+
+            Console.ReadKey();
         }
 
         /// <summary>
@@ -49,16 +53,35 @@ namespace TestTask
         /// <returns>Коллекция статистик по каждой букве, что была прочитана из стрима.</returns>
         private static IList<LetterStats> FillSingleLetterStats(IReadOnlyStream stream)
         {
+            List<LetterStats> listLetterStats = new List<LetterStats>();
+
             stream.ResetPositionToStart();
             while (!stream.IsEof)
             {
+                LetterStats letterStats;
                 char c = stream.ReadNextChar();
-                // TODO : заполнять статистику с использованием метода IncStatistic. Учёт букв - регистрозависимый.
+
+                if (!char.IsLetter(c))
+                    continue;
+
+                if (listLetterStats.Any(l => l.Letter == c.ToString()))
+                {
+                    letterStats = listLetterStats.First(l => l.Letter == c.ToString());
+                }
+                else
+                {
+                    letterStats = new LetterStats
+                    {
+                        Letter = c.ToString(),
+                        Count = 0
+                    };
+                    listLetterStats.Add(letterStats);
+                }
+
+                IncStatistic(letterStats);
             }
 
-            //return ???;
-
-            throw new NotImplementedException();
+            return listLetterStats;
         }
 
         /// <summary>
@@ -67,19 +90,45 @@ namespace TestTask
         /// Статистика - НЕ регистрозависимая!
         /// </summary>
         /// <param name="stream">Стрим для считывания символов для последующего анализа</param>
-        /// <returns>Коллекция статистик по каждой букве, что была прочитана из стрима.</returns>
+        /// <returns>Коллекция статистик по каждой паре букв, что была прочитана из стрима.</returns>
         private static IList<LetterStats> FillDoubleLetterStats(IReadOnlyStream stream)
         {
+            List<LetterStats> listLetterStats = new List<LetterStats>();
+
             stream.ResetPositionToStart();
+            if (stream.IsEof)
+            {
+                return listLetterStats;
+            }
+            char oldChar = stream.ReadNextChar();
+            char newChar; 
             while (!stream.IsEof)
             {
-                char c = stream.ReadNextChar();
-                // TODO : заполнять статистику с использованием метода IncStatistic. Учёт букв - НЕ регистрозависимый.
+                LetterStats letterStats;
+                newChar = stream.ReadNextChar();
+                if (oldChar.ToString().ToLower() ==  newChar.ToString().ToLower())
+                {
+                    if (listLetterStats.Any(l => l.Letter == $"{newChar}{newChar}"))
+                    {
+                        letterStats = listLetterStats.First(l => l.Letter == $"{newChar.ToString().ToLower()}{newChar.ToString().ToLower()}");
+                    }
+                    else
+                    {
+                        letterStats = new LetterStats
+                        {
+                            Letter = $"{newChar.ToString().ToLower()}{newChar.ToString().ToLower()}",
+                            Count = 0
+                        };
+                        listLetterStats.Add(letterStats);
+                    }
+                    IncStatistic(letterStats);
+                }
+
+                oldChar = newChar;
+
             }
 
-            //return ???;
-
-            throw new NotImplementedException();
+            return listLetterStats;
         }
 
         /// <summary>
@@ -89,14 +138,18 @@ namespace TestTask
         /// </summary>
         /// <param name="letters">Коллекция со статистиками вхождения букв/пар</param>
         /// <param name="charType">Тип букв для анализа</param>
-        private static void RemoveCharStatsByType(IList<LetterStats> letters, CharType charType)
+        private static void SelectCharStatsByType(ref IList<LetterStats> letters, CharType charType)
         {
-            // TODO : Удалить статистику по запрошенному типу букв.
+            var vowels = "ёуеыаоэяиюeyuioa";
+            var consonants = "цкнгшщзхъфвпрлджчсмтьбqwrtpsdfghjklzxcvbnm";
+            List<LetterStats> finalList = new List<LetterStats>();
             switch (charType)
             {
                 case CharType.Consonants:
+                    letters = letters.Where(l => consonants.Contains(l.Letter.ToLower()[0])).ToList();
                     break;
                 case CharType.Vowel:
+                    letters = letters.Where(l => vowels.Contains(l.Letter.ToLower()[0])).ToList();
                     break;
             }
             
@@ -111,8 +164,15 @@ namespace TestTask
         /// <param name="letters">Коллекция со статистикой</param>
         private static void PrintStatistic(IEnumerable<LetterStats> letters)
         {
-            // TODO : Выводить на экран статистику. Выводить предварительно отсортировав по алфавиту!
-            throw new NotImplementedException();
+            letters = letters.OrderBy(l => l.Letter).ToList();
+
+            Console.WriteLine($"\nНачало метода {nameof(PrintStatistic)}");
+
+            foreach (LetterStats letterStats in letters)
+            {
+                Console.WriteLine($"{letterStats.Letter} : {letterStats.Count}");
+            }
+            Console.WriteLine($"Итого: {letters.Sum(l => l.Count)}");
         }
 
         /// <summary>
@@ -123,7 +183,5 @@ namespace TestTask
         {
             letterStats.Count++;
         }
-
-
     }
 }
